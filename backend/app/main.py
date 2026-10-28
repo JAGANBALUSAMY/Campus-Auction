@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.routes.auth import router as auth_router
 from app.api.routes.health import router as health_router
 from app.core.settings import Settings, get_settings
 from app.database import create_database_engine
@@ -41,11 +42,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if docs_enabled else None,
         lifespan=lifespan,
     )
+    application.state.settings = app_settings
+    application.state.engine = None
     application.add_middleware(
         CORSMiddleware,
         allow_origins=app_settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["GET"],
+        allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
 
@@ -81,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     application.include_router(health_router, prefix="/api/v1")
+    application.include_router(auth_router, prefix="/api/v1")
     return application
 
 

@@ -579,6 +579,156 @@ a:focus-visible {
   color: var(--ink);
 }
 
+.auth-nav-status {
+  color: #788079;
+  font-size: 11px;
+}
+
+.auth-page {
+  min-height: 62vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 20px;
+}
+
+.auth-card {
+  width: min(100%, 440px);
+  padding: 36px;
+  border: 1px solid var(--line);
+  background: #fbfaf8;
+}
+
+.auth-card h1 {
+  margin: 12px 0 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 35px;
+  font-weight: 400;
+  letter-spacing: -1px;
+}
+
+.auth-intro {
+  margin-bottom: 24px;
+  color: #6f7770;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.auth-form {
+  display: grid;
+  gap: 9px;
+}
+
+.auth-form label {
+  margin-top: 7px;
+  color: #45554a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 43px;
+  padding: 0 12px;
+  border: 1px solid #d9dbd5;
+  border-radius: 3px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.auth-form input:focus-visible {
+  outline: 3px solid #d6aa59;
+  outline-offset: 2px;
+}
+
+.auth-form input[aria-invalid="true"] {
+  border-color: #b94f42;
+}
+
+.field-hint,
+.field-error {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.field-hint {
+  color: #788079;
+}
+
+.field-error,
+.form-error {
+  color: #a53e34;
+}
+
+.form-error,
+.success-message {
+  padding: 11px 12px;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.form-error {
+  background: #f9eeeb;
+}
+
+.success-message {
+  margin-bottom: 17px;
+  background: #e9eee8;
+  color: #355a42;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 9px;
+  cursor: pointer;
+}
+
+.auth-submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.auth-switch {
+  margin-top: 20px;
+  color: #6f7770;
+  font-size: 11px;
+  text-align: center;
+}
+
+.auth-switch a {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.profile-details {
+  display: grid;
+  gap: 0;
+  margin: 24px 0 18px;
+  border-top: 1px solid var(--line);
+}
+
+.profile-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.profile-details dt {
+  color: #788079;
+}
+
+.profile-details dd {
+  margin: 0;
+  color: var(--ink);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 800px) {
   .page-width {
     width: min(100% - 40px, 600px);
@@ -639,6 +789,10 @@ a:focus-visible {
   .site-footer {
     flex-wrap: wrap;
     padding-block: 17px;
+  }
+
+  .auth-card {
+    padding: 27px 22px;
   }
 }
 

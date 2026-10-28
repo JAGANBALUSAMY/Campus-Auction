@@ -1,5 +1,9 @@
-from app.models import Base
+from app.models import Base, User
 
 
-def test_initial_metadata_contains_no_speculative_domain_tables() -> None:
-    assert list(Base.metadata.tables) == []
+def test_metadata_contains_only_phase_one_user_table() -> None:
+    assert list(Base.metadata.tables) == ["users"]
+    assert any(
+        constraint.name == "uq_users_email"
+        for constraint in User.__table__.constraints
+    )

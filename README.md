@@ -1,10 +1,9 @@
 # Campus Auction
 
-Phase 0 establishes the web application and API foundation for a student-first
-campus marketplace. The landing page, API health check, PostgreSQL connection
-readiness check, and migration scaffolding are available. Auctions, accounts,
-listings, bidding, and other marketplace workflows are intentionally not
-implemented in this phase.
+Phase 0 establishes the web application and API foundation; Phase 1 adds
+student registration, login, short-lived JWT sessions, and a protected account
+profile. Auctions, listings, bidding, and other marketplace workflows are
+intentionally not implemented yet.
 
 ## Prerequisites
 
@@ -15,11 +14,10 @@ implemented in this phase.
 
 ## Environment configuration
 
-The project-root `.env` is present locally but ignored by Git. It contains
-placeholders, not usable credentials: replace its database password with your
-local PostgreSQL password before starting the API, and keep the connection
-URL's username, password, host, port, and database name in sync with the
-PostgreSQL settings. For a fresh checkout, create it from `.env.example`:
+The project-root `.env` is local and ignored by Git. Keep database credentials
+and `DATABASE_URL` in sync. For a fresh checkout, create it from
+`.env.example`, then replace all placeholder passwords and generate a random
+`JWT_SECRET_KEY`:
 
 ```powershell
 Copy-Item .env.example .env
@@ -28,7 +26,11 @@ Copy-Item .env.example .env
 `CORS_ALLOWED_ORIGINS` is a comma-separated list of browser origins. The
 default allows the Vite development server at `http://localhost:5173`.
 `VITE_API_BASE_URL` configures the frontend API origin and defaults to
-`http://localhost:8000`.
+`http://localhost:8000`. Configure `JWT_SECRET_KEY` as a random secret of at
+least 32 characters. `AUTH_COOKIE_SECURE=false` is for local HTTP only; use
+HTTPS and `AUTH_COOKIE_SECURE=true` for a deployment. See
+[docs/SESSION_SECURITY.md](./docs/SESSION_SECURITY.md) for the JWT, cookie, and
+CSRF design.
 
 ## Start PostgreSQL
 
@@ -95,10 +97,10 @@ configured, run from `backend/`:
 alembic upgrade head
 ```
 
-The initial revision intentionally creates no domain tables. SQLAlchemy's
-`Base.metadata` and Alembic's autogeneration wiring are in place for domain
-models added in their relevant phases. To render the empty initial migration
-as SQL without connecting to a database, run:
+The initial revisions create the migration version table and student `users`
+table. SQLAlchemy's metadata and Alembic autogeneration wiring are in place for
+later domain models. To render migrations as SQL without connecting to a
+database, run:
 
 ```powershell
 alembic upgrade --sql head
@@ -112,9 +114,28 @@ From `backend/`, with the virtual environment active:
 python -m pytest
 ```
 
+Authentication integration tests use a separate PostgreSQL database whose
+name ends in `_test`. Create it once and apply the migrations before testing:
+
+```powershell
+Set-Location backend
+createdb -h localhost -U postgres campus_auction_test
+$env:TEST_DATABASE_URL = (Get-Content ..\.env | Where-Object { $_ -match '^TEST_DATABASE_URL=' }) -replace '^TEST_DATABASE_URL=', ''
+$env:DATABASE_URL = $env:TEST_DATABASE_URL
+alembic upgrade head
+python -m pytest
+```
+
+In the test terminal, ensure the backend `.venv` is active. The root `.env`
+stores the test connection URL so tests can also read it directly; the
+environment variable shown above is an alternative. Authentication tests
+delete their test users after each test and refuse to run against a database
+whose name does not end in `_test`.
+
 From `frontend/`:
 
 ```powershell
+npm test
 npm run typecheck
 npm run build
 ```
@@ -127,6 +148,14 @@ running and the configured credentials are valid:
 Invoke-RestMethod http://localhost:8000/api/v1/health
 Invoke-RestMethod http://localhost:8000/api/v1/health/ready
 ```
+
+Authentication endpoints are `POST /api/v1/auth/register`,
+`POST /api/v1/auth/login`, `GET /api/v1/auth/me`, and
+`POST /api/v1/auth/logout`. Registration requires a valid email and a
+12–128-character password and navigates to sign-in. Login sets an HttpOnly,
+short-lived session cookie. The account route is frontend-protected, and the
+API independently enforces authentication on `/me`. Logout requires the CSRF
+header associated with the readable CSRF cookie.
 
 ## Troubleshooting
 

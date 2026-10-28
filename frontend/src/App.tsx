@@ -1,5 +1,9 @@
 import { Link, Route, Routes } from 'react-router-dom'
 import { HealthStatus } from './components/HealthStatus'
+import { AccountPage } from './features/auth/AccountPage'
+import { AuthenticationLinks, ProtectedRoute } from './features/auth/ProtectedRoute'
+import { LoginPage } from './features/auth/LoginPage'
+import { RegisterPage } from './features/auth/RegisterPage'
 import { LandingPage } from './features/landing/LandingPage'
 import { PlaceholderPage } from './routes/PlaceholderPage'
 
@@ -19,14 +23,17 @@ function SiteLayout() {
         </nav>
         <div className="header-actions">
           <HealthStatus />
-          <Link className="button button--small" to="/sell">
-            List an item <span aria-hidden="true">↗</span>
-          </Link>
+          <AuthenticationLinks />
         </div>
       </header>
 
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/account" element={<AccountPage />} />
+        </Route>
         <Route
           path="/auctions"
           element={
