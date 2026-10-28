@@ -17,7 +17,7 @@ export function ProtectedRoute() {
     return (
       <main className="auth-page">
         <div className="auth-card" role="alert">
-          <h1>We couldn’t check your session.</h1>
+          <h1>We couldn't check your session.</h1>
           <p>Check your connection and try again.</p>
           <button
             className="button button--primary"
@@ -67,8 +67,13 @@ export function AuthenticationLinks() {
   }
 
   return (
-    <Link className="button button--small" to="/account">
-      My account
-    </Link>
+    <>
+      <Link className="button button--small" to="/account">
+        My account
+      </Link>
+      <Link className="button button--small" to="/listings/create">
+        My Listings
+      </Link>
+    </>
   )
 }

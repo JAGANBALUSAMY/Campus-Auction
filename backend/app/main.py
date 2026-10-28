@@ -7,7 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.health import router as health_router
+from app.api.routes.listing import router as listing_router
 from app.core.settings import Settings, get_settings
 from app.database import create_database_engine
 
@@ -85,6 +87,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     application.include_router(health_router, prefix="/api/v1")
     application.include_router(auth_router, prefix="/api/v1")
+    application.include_router(dashboard_router, prefix="/api/v1")
+    application.include_router(listing_router, prefix="/api/v1")
     return application
 
 

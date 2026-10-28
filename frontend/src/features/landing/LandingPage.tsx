@@ -1,26 +1,5 @@
 import { Link } from 'react-router-dom'
 
-const steps = [
-  {
-    number: '01',
-    title: 'Find something useful',
-    description:
-      'Discover the kinds of things students pass on: books, bikes, tech and more.',
-  },
-  {
-    number: '02',
-    title: 'Take part transparently',
-    description:
-      'Auctions are designed around clear bids and a visible closing time.',
-  },
-  {
-    number: '03',
-    title: 'Agree before it’s yours',
-    description:
-      'The seller approves the winning price before the item is reserved for handover.',
-  },
-]
-
 export function LandingPage() {
   return (
     <main>
@@ -28,7 +7,7 @@ export function LandingPage() {
         <div className="hero-copy">
           <span className="eyebrow">
             <span className="eyebrow-mark" aria-hidden="true">
-              ✳
+              �o3
             </span>
             Good finds, close by
           </span>
@@ -43,15 +22,15 @@ export function LandingPage() {
             behind.
           </p>
           <div className="hero-actions">
-            <Link className="button button--primary" to="/auctions">
-              Explore auctions <span aria-hidden="true">↗</span>
-            </Link>
-            <Link className="button button--secondary" to="/sell">
+            <Link className="button button--primary" to="/listings/create">
               List an item
+            </Link>
+            <Link className="button button--secondary" to="/dashboard">
+              Dashboard
             </Link>
           </div>
           <p className="hero-note">
-            No live auctions yet — the marketplace is getting ready.
+            No live auctions yet �?" the marketplace is getting ready.
           </p>
         </div>
         <div
@@ -79,17 +58,17 @@ export function LandingPage() {
           </div>
           <div className="art-tag" aria-hidden="true">
             <span>PASS IT ON</span>
-            <b>♥</b>
+            <b>�T�</b>
           </div>
           <div className="art-caption" aria-hidden="true">
             <span>ONE CAMPUS,</span>
             <strong>MORE POSSIBILITY.</strong>
           </div>
           <span className="art-spark art-spark--one" aria-hidden="true">
-            ✳
+            �o3
           </span>
           <span className="art-spark art-spark--two" aria-hidden="true">
-            ✳
+            �o3
           </span>
         </div>
       </section>
@@ -97,36 +76,14 @@ export function LandingPage() {
       <section className="intro-band" aria-label="Marketplace principles">
         <div className="page-width intro-band-inner">
           <p>
-            <span aria-hidden="true">↗</span> Made for student life
+            <span aria-hidden="true">�+-</span> Made for student life
           </p>
           <p>
-            <span aria-hidden="true">◉</span> Clear, competitive auctions
+            <span aria-hidden="true">�-%</span> Clear, competitive auctions
           </p>
           <p>
-            <span aria-hidden="true">⌂</span> Handover on your campus
+            <span aria-hidden="true">�O,</span> Handover on your campus
           </p>
-        </div>
-      </section>
-
-      <section className="how-it-works page-width" id="how-title" aria-labelledby="how-heading">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">A better way to pass it on</span>
-            <h2 id="how-heading">Simple by design.</h2>
-          </div>
-          <p>
-            A good exchange should feel clear from the first look to the final
-            handover.
-          </p>
-        </div>
-        <div className="steps-grid">
-          {steps.map((step) => (
-            <article className="step-card" key={step.number}>
-              <span className="step-number">{step.number}</span>
-              <h3>{step.title}</h3>
-              <p>{step.description}</p>
-            </article>
-          ))}
         </div>
       </section>
 
@@ -135,12 +92,12 @@ export function LandingPage() {
           <span className="eyebrow">The marketplace is warming up</span>
           <h2 id="empty-title">Good things take a little setup.</h2>
           <p>
-            Browsing and listing aren’t live in this first release. We’re
+            Browsing and listing aren't live in this first release. We're
             building the foundation for a marketplace that works for campus.
           </p>
         </div>
-        <Link className="button button--dark" to="/auctions">
-          See what’s available <span aria-hidden="true">↗</span>
+        <Link className="button button--dark" to="/listings/create">
+          See what's available <span aria-hidden="true">�+-</span>
         </Link>
       </section>
     </main>

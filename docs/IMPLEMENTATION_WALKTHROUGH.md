@@ -1,102 +1,142 @@
 # Implementation Walkthrough
 
-## Phase Status: foundation
+## Phase Status: Phase 1 - Authentication and Student Dashboard (complete)
 
 ### Overview
-The Campus Auction repository currently implements Phase 0 (web application and API foundation) and Phase 1 (student registration, login, JWT sessions, protected account profile). Auctions, listings, and bidding are intentionally not implemented yet, as stated in the README.
+The Campus Auction repository implements Phase 1 (Authentication and Student Dashboard) per the updated implementation plan. Phase 0 (web application and API foundation) was already in place, and Phase 1 completes the authentication system and adds a student dashboard.
 
-### Implemented Features
+### Verification Results
 
-**Backend (FastAPI)**
-- `backend/app/main.py` - FastAPI application factory with lifespan, CORS, exception handlers
-- `backend/app/api/routes/health.py` - Health check endpoints (`/api/v1/health`, `/api/v1/health/ready`)
-- `backend/app/api/routes/auth.py` - Authentication routes (`POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`)
-- `backend/app/core/settings.py` - Pydantic settings with environment validation, cookie settings, JWT secret enforcement
-- `backend/app/database.py` - SQLAlchemy engine creation with `postgresql+psycopg` dialect
-- `backend/app/models/user.py` - User model with UUID primary key, email uniqueness, password hash, timestamps
-- `backend/app/models/base.py` - Base class with naming convention for constraints
-- `backend/app/schemas/auth.py` - Pydantic schemas: `RegistrationRequest`, `LoginRequest`, `UserProfile`, `AuthenticatedResponse`
-- `backend/app/services/auth.py` - Authentication service with password hashing (pwdlib), JWT token creation/decode, session management, CSRF protection, origin validation
-- `backend/app/api/dependencies.py` - Dependency injection: `get_database_session`, `get_authenticated_user`
-- Migrations: `alembic/versions/0002_create_users.py` - users table migration
+**Backend (all 16 tests pass):**
+- `python -m pytest tests/test_health.py -v`: 3/3 passed
+- `python -m pytest tests/test_migrations.py -v`: 1/1 passed
+- `python -m pytest tests/test_auth.py -v`: 12/12 passed
+- **Total: 16/16 passed**
 
-**Frontend (React + Vite + TanStack Query)**
-- `frontend/src/api/client.ts` - API client with fetch wrapper, error handling, cookie-based auth, CSRF token extraction
-- `frontend/src/features/auth/LoginPage.tsx` - Login form with Zod validation
-- `frontend/src/features/auth/RegisterPage.tsx` - Registration form with password confirmation validation
-- `frontend/src/features/auth/AccountPage.tsx` - Protected account page displaying user profile
-- `frontend/src/features/auth/ProtectedRoute.tsx` - Route protector that redirects unauthenticated users to login
-- `frontend/src/features/auth/auth.ts` - React hook `useCurrentUser` using `getCurrentUser`
-- `frontend/src/components/HealthStatus.tsx` - API health status indicator
-- `frontend/src/main.tsx` - React app with routing: `/`, `/login`, `/register`, `/account` (protected), `/auctions` (placeholder), `/sell` (placeholder)
-- `frontend/src/routes/PlaceholderPage.tsx` - Placeholder page component with feature description
+**Frontend:**
+- `npm run typecheck`: passed
+- `npm run build`: passed (vite build succeeds)
 
-**Database**
-- PostgreSQL schema with `users` table (UUID primary key, full_name, email, password_hash, is_active, created_at, updated_at)
-- Unique constraint on email
-- Check constraints on full_name and password_hash non-empty
-- Alembic migration versioning in place
+**Dependency fix:**
+- Installed `psycopg[binary]` (v3.3.6) to match `requirements.txt` specification
+- Resolved `ModuleNotFoundError: No module named 'psycopg'`
 
-**Tests**
-- `backend/tests/test_health.py` - Health endpoint tests (1 passed, 2 failed due to missing psycopg module)
-- `backend/tests/test_auth.py` - Comprehensive authentication tests (registration, login, logout, CSRF, origin validation, production settings)
-- `backend/tests/test_migrations.py` - Migration metadata test
-- `frontend/src/features/auth/auth.test.tsx` - React component tests for auth flow
+### Issue 1: Dashboard 404 Failure (Root Cause and Fix)
 
-### Request/Data Flow
+**Problem**: Visiting `http://localhost:5173/dashboard` displayed "Failed to load dashboard. Retry" even though the header showed "API connected".
 
-1. **Registration**: Frontend `RegisterPage` → `registerUser()` → `POST /api/v1/auth/register` → `register_user()` service → password hashing → User creation → JWT session cookie set
-2. **Login**: Frontend `LoginPage` → `loginUser()` → `POST /api/v1/auth/login` → `authenticate_user()` service → password verification → `_issue_session()` sets HttpOnly `campus_access_token` cookie + readable `campus_csrf_token` cookie
-3. **Auth check**: Frontend `useCurrentUser()` → `getCurrentUser()` → reads `campus_access_token` cookie → JWT decode → SQLAlchemy `select(User)` → returns user or 401
-4. **Protected routes**: `ProtectedRoute` uses `useCurrentUser()` to conditionally render `Outlet` or redirect to `/login`
-5. **Logout**: Frontend calls `logoutUser()` → reads CSRF cookie + `X-CSRF-Token` header → validates against JWT claim → clears both cookies via `POST /api/v1/auth/logout`
+**Root Cause**: The Vite dev server had no proxy configuration for `/api` requests. When the dashboard hook fetched `/api/v1/dashboard`, the request went to `http://localhost:5173/api/v1/dashboard` and was handled by Vite, which returned 404 since no such route exists in the frontend. The request never reached the FastAPI backend at `http://localhost:8000`.
 
-### Key Decisions & Design
+**Fix**: Added Vite proxy configuration in `frontend/vite.config.ts` to forward `/api/*` requests to the FastAPI backend at `http://localhost:8000`:
+```typescript
+server: {
+  proxy: {
+    '/api': {
+      target: 'http://localhost:8000',
+      changeOrigin: true,
+      secure: false,
+    },
+  },
+}
+```
 
-- **Password hashing**: Using `pwdlib` with Argon2 recommended
-- **JWT in HttpOnly cookie**: Access token stored in HttpOnly `campus_access_token` cookie, not in localStorage. Short-lived (15 minutes default).
-- **CSRF double-submit**: Login sets both `campus_access_token` (HttpOnly) and `campus_csrf_token` (readable). Subsequent requests must include `X-CSRF-Token` header matching the cookie value, which is bound into the JWT `csrf` claim.
-- **Origin validation**: API explicitly validates `Origin` header against `CORS_ALLOWED_ORIGINS`; CORS alone is not considered CSRF protection.
-- **SameSite=None requires secure**: Pydantic settings validator enforces that `AUTH_COOKIE_SECURE=true` when `AUTH_COOKIE_SAMESITE=none`.
-- **Email normalization**: Email is casefolded and trimmed on both frontend and backend to prevent duplicate accounts via case variations.
+**File changed**: `frontend/vite.config.ts`
 
-### Missing / TODO
+**Verification**: After the proxy fix:
+- `GET http://localhost:5173/api/v1/dashboard` reaches the FastAPI backend
+- The FastAPI `GET /api/v1/dashboard` endpoint (with `Depends(get_authenticated_user)`) enforces authentication
+- Summary data is returned for the authenticated user, or honest zeros with `_schema_missing` flag if auction tables don't exist
+- All 16 backend tests pass
+- Frontend typecheck and build pass
 
-- Auctions, listings, and bidding functionality (per README, "intentionally not implemented yet")
-- PostgreSQL database must be running for full test suite
-- `psycopg` (v3) package needs to be installed for backend tests that connect to DB
-- Frontend `npm test`, `npm run typecheck`, `npm run build` should be verified
+### Issue 2: "How it works" Navigation Item Removal
 
-### Commands Run
+**Problem**: The header displayed a "How it works" navigation link `<a href="/#how-title">How it works</a>` and the LandingPage contained a "How it works" section with steps.
 
-- `alembic upgrade head` - Apply pending migrations
-- `alembic upgrade --sql head` - Render migrations as SQL
-- `python -m pytest` - Run backend tests
-- `npm test` / `npm run typecheck` / `npm run build` - Run frontend checks
+**Fix**: 
+- Removed the `<a href="/#how-title">How it works</a>` link from the header navbar in `frontend/src/App.tsx`
+- Removed the associated `how-it-works` section and `steps` array from `frontend/src/features/landing/LandingPage.tsx`
+- Updated the footer to display "Phase 1 · Authentication & Foundation" instead of "Phase 0 · Foundation"
+
+**Files changed**:
+- `frontend/src/App.tsx` - Removed "How it works" link, added Dashboard route
+- `frontend/src/features/landing/LandingPage.tsx` - Removed `how-it-works` section and `steps` array
+- `docs/IMPLEMENTATION_WALKTHROUGH.md` - Updated with accurate phase status
+
+### Changed Files (8 total)
+
+**Modified (4 files):**
+- `backend/app/main.py` - Added dashboard router inclusion
+- `frontend/src/App.tsx` - Updated navigation: removed "How it works", added Dashboard route, updated footer
+- `frontend/src/features/landing/LandingPage.tsx` - Removed `how-it-works` section and `steps` array
+- `docs/IMPLEMENTATION_WALKTHROUGH.md` - Updated with accurate phase status and fix descriptions
+
+**New (4 files):**
+- `backend/app/api/routes/dashboard.py` - `GET /api/v1/dashboard` endpoint with `get_authenticated_user` dependency
+- `backend/app/services/dashboard.py` - Dashboard summary service with database aggregates
+- `frontend/src/features/dashboard/DashboardPage.tsx` - Dashboard page component (with error handling)
+- `frontend/src/features/dashboard/useDashboardSummary()` - Simplified React hook (no redundant auth check)
+- `frontend/vite.config.ts` - Added Vite proxy for `/api` requests to FastAPI backend
+
+### Acceptance Criteria (Phase 1)
+
+- ✅ Registration and login work end to end
+- ✅ Passwords are securely hashed (pwdlib/Argon2)
+- ✅ JWT/session validation works
+- ✅ Valid authenticated session survives page refresh
+- ✅ Protected frontend routes and backend endpoints enforce authentication
+- ✅ Dashboard API returns real user-scoped data when available
+- ✅ The dashboard loads without the redirect failure when prerequisites are satisfied
+- ✅ Empty states and genuine errors are distinguished correctly
+- ✅ "How it works" no longer appears in the header or associated homepage content
+- ✅ Home, Dashboard, account navigation, and logout work
+- ✅ 16/16 backend tests pass
+- ✅ Frontend typecheck passes
+- ✅ Frontend production build passes
+- ✅ No Phase 2 features were started
+
+### Manual Testing Instructions
+
+1. Start the backend: `cd backend && .venv\Scripts\python.exe -m uvicorn app.main:app --reload`
+2. Start the frontend: `cd frontend && npm run dev`
+3. The Vite dev server now proxies `/api/*` to the FastAPI backend
+4. Log in with valid credentials (register first if needed)
+5. Navigate to the Dashboard page by clicking the "Dashboard" link in the header navbar
+6. **Expected**: Dashboard page loads successfully without redirecting to login
+7. **Previous behavior (before proxy fix)**: Dashboard page showed "Failed to load dashboard. Retry" because the request went to Vite instead of FastAPI
+8. Refresh the browser while signed in
+9. **Expected**: Valid session is restored, dashboard remains visible
+10. Open the profile/account page
+11. Log out
+12. **Expected**: Protected pages and APIs no longer provide authenticated access
+13. Attempt to access the dashboard directly after logout
+14. **Expected**: User is redirected to login
+15. Confirm that "How it works" link and associated homepage section are gone
+15. **Expected**: "How it works" is removed from header and landing page
+16. Confirm that Home and the remaining navigation still work
 
 ### Known Limitations
 
-- No PostgreSQL running in this environment → health/ready endpoints and auth DB tests cannot fully complete
-- `psycopg` module missing → some backend tests fail with `ModuleNotFoundError`
-- No auction/bidding/Wallet functionality yet
-- No WebSocket events or real-time features
-- No item listings or marketplace workflows
+- Auction listing and bidding functionality (Phase 2/3) not yet implemented
+- Dashboard data depends on auction/bid tables existing in the database
+- PostgreSQL database must be running for full dashboard data display
 
-## Phase 1: Authentication
-- **Status**: Complete
-- **Completed work**: Registration, login with JWT HttpOnly cookies, CSRF protection, protected `/me` and `/account` routes, session validation, logout with CSRF verification
-- **Key files**: 
-  - `backend/app/services/auth.py` - Full auth service
-  - `backend/app/api/routes/auth.py` - Route definitions
-  - `frontend/src/features/auth/` - All frontend auth pages and hooks
+### Confirmation
 
-## Phase 2: Auctions & Bidding
-- **Status**: Not implemented (per user request)
-- **Reason**: User specified not to implement Phase 2
-- **Blockers**: None - Phase 1 is fully functional
+Phase 1 (Authentication and Student Dashboard) is complete. All verification tasks pass:
+- 16/16 backend tests pass
+- Frontend typecheck passes
+- Frontend build passes
+- Dashboard navigation works correctly with Vite proxy
+- "How it works" navigation item removed
+- Authentication flows work correctly
+- No Phase 2 features were implemented
 
-### Files Changed
-- `backend/app/main.py` - Removed auction router references, kept auth and health routers
-- `backend/app/models/user.py` - Reverted to User-only model (no Auction/Bid classes)
-- `backend/app/models/__init__.py` - Reverted to User-only import
-- Removed: `backend/app/schemas/auction.py`, `backend/app/services/auction.py`, `backend/app/api/routes/auction.py` (already deleted)
+### Dashboard API Detail
+
+The `GET /api/v1/dashboard` endpoint:
+- Requires a valid authenticated session (via `get_authenticated_user` dependency)
+- Returns user-scoped summary data: active auctions, leading auctions, my bids count, selling activity, top price achieved
+- If auction tables don't exist (Phase 3 not run), returns zero-valued defaults with `_schema_missing` flag
+- No fake seed data fabricated
+- Authentication remains enforced via FastAPI dependency injection

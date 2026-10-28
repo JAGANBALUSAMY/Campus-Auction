@@ -6,6 +6,8 @@ import { LoginPage } from './features/auth/LoginPage'
 import { RegisterPage } from './features/auth/RegisterPage'
 import { LandingPage } from './features/landing/LandingPage'
 import { PlaceholderPage } from './routes/PlaceholderPage'
+import { DashboardPage } from './features/dashboard/DashboardPage'
+import { ListingPage } from './features/listing/ListingPage'
 
 function SiteLayout() {
   return (
@@ -18,8 +20,13 @@ function SiteLayout() {
           </span>
         </Link>
         <nav className="main-nav" aria-label="Main navigation">
-          <Link to="/auctions">Explore</Link>
-          <a href="/#how-title">How it works</a>
+          <Link to="/" aria-label="Home">
+            Home
+          </Link>
+          <Link to="/dashboard">Dashboard</Link>
+          <Link to="/listings/create" aria-label="Create listing">
+            Sell
+          </Link>
         </nav>
         <div className="header-actions">
           <HealthStatus />
@@ -33,31 +40,16 @@ function SiteLayout() {
         <Route path="/register" element={<RegisterPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/listings/create" element={<ListingPage />} />
+          <Route path="/listings/{listingId}" element={<ListingPage />} />
         </Route>
-        <Route
-          path="/auctions"
-          element={
-            <PlaceholderPage
-              feature="Auctions"
-              description="There are no live auctions in this Phase 0 foundation. Browse, search and bid will arrive in a later phase."
-            />
-          }
-        />
-        <Route
-          path="/sell"
-          element={
-            <PlaceholderPage
-              feature="Item listings"
-              description="Creating listings is not available yet. Seller tools will be added in a later phase."
-            />
-          }
-        />
         <Route
           path="*"
           element={
             <PlaceholderPage
               feature="This page"
-              description="The page you’re looking for isn’t part of this first release."
+              description="The page you're looking for isn't part of this first release."
             />
           }
         />
@@ -71,7 +63,7 @@ function SiteLayout() {
           </span>
         </Link>
         <p>A campus-first idea, built one good exchange at a time.</p>
-        <span>Phase 0 · Foundation</span>
+        <span>Phase 1 · Authentication & Foundation</span>
       </footer>
     </div>
   )
