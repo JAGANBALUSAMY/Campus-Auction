@@ -8,6 +8,7 @@ import { LandingPage } from './features/landing/LandingPage'
 import { PlaceholderPage } from './routes/PlaceholderPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { ListingPage } from './features/listing/ListingPage'
+import MyListingsPage from './features/listing/MyListingsPage'
 
 function SiteLayout() {
   return (
@@ -27,6 +28,9 @@ function SiteLayout() {
           <Link to="/listings/create" aria-label="Create listing">
             Sell
           </Link>
+          <Link to="/my-listings" aria-label="My listings">
+            My Listings
+          </Link>
         </nav>
         <div className="header-actions">
           <HealthStatus />
@@ -43,6 +47,7 @@ function SiteLayout() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/listings/create" element={<ListingPage />} />
           <Route path="/listings/{listingId}" element={<ListingPage />} />
+          <Route path="/my-listings" element={<MyListingsPage />} />
         </Route>
         <Route
           path="*"

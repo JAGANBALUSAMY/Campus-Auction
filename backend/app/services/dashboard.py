@@ -1,102 +1,172 @@
-from datetime import datetime
-from typing import Any, Dict, Optional
+
+import logging
+from datetime import datetime, timezone
+from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-
-# Lazy import helpers - safely attempt to import auction/bid models
-_Auction = None
-_Bid = None
+logger = logging.getLogger(__name__)
 
 
 def _get_auction_model():
-    global _Auction
-    if _Auction is None:
-        try:
-            from app.models.auction import Auction  # type: ignore
-            _Auction = Auction
-        except ImportError:
-            _Auction = None
-    return _Auction
+    try:
+        from app.models.auction import Auction
+        return Auction
+    except ImportError:
+        logger.warning("Auction model is unavailable")
+        return None
 
 
 def _get_bid_model():
-    global _Bid
-    if _Bid is None:
-        try:
-            from app.models.bid import Bid  # type: ignore
-            _Bid = Bid
-        except ImportError:
-            _Bid = None
-    return _Bid
+    try:
+        from app.models.bid import Bid
+        return Bid
+    except ImportError:
+        logger.warning("Bid model is unavailable")
+        return None
 
 
-def get_dashboard_summary(db: Session, user_id: str) -> Dict[str, Any]:
-    """Get dashboard summary for an authenticated user.
+def _get_listing_model():
+    try:
+        from app.models.listing import Listing
+        return Listing
+    except ImportError:
+        logger.exception("Could not import Listing model")
+        return None
 
-    Uses database aggregates. If auction/bid tables don't exist (Phase 3 not run),
-    returns zero-valued defaults so the API contract can be extended without
-    fake seed data. Always returns typed keys so the frontend can render
-    without pretending data exists.
-    """
-    auction = _get_auction_model()
-    bid = _get_bid_model()
 
-    # Initialize all values to defaults
-    result: Dict[str, Any] = {
+def _count(query) -> int:
+    value = query.scalar()
+    return int(value or 0)
+
+
+def get_dashboard_summary(
+    db: Session,
+    user_id: Any,
+) -> dict[str, Any]:
+    """Return dashboard statistics for the authenticated user."""
+
+    result: dict[str, Any] = {
         "active_auctions": 0,
         "leading_auctions": 0,
         "user_bids_count": 0,
         "selling_activity": 0,
+        "total_listings": 0,
+        "active_listings": 0,
+        "draft_listings": 0,
         "top_price_achieved": 0.0,
-        "last_updated": datetime.utcnow(),
+        "last_updated": datetime.now(timezone.utc).isoformat(),
     }
 
-    if auction is None or bid is None:
-        # Auction tables not yet available - return honest zeros
+    # 1. Listing statistics
+    Listing = _get_listing_model()
+
+    if Listing is None:
         result["_schema_missing"] = True
         return result
 
     try:
-        # Active auctions in the system
-        active_auctions = db.scalar(
-            func.count().select_from(auction).where(auction.is_active == True)
-        )
-        result["active_auctions"] = int(active_auctions) if active_auctions else 0
-
-        # Auctions the user is leading (created by user)
-        leading_auctions = db.scalar(
-            func.count().select_from(auction).where(
-                auction.seller_id == user_id, auction.is_active == True
+        result["total_listings"] = _count(
+            db.query(func.count(Listing.id)).filter(
+                Listing.seller_id == user_id
             )
         )
-        result["leading_auctions"] = int(leading_auctions) if leading_auctions else 0
 
-        # User's bid count
-        user_bids_count = db.scalar(
-            func.count().select_from(bid).where(bid.bidder_id == user_id)
-        )
-        result["user_bids_count"] = int(user_bids_count) if user_bids_count else 0
-
-        # Selling activity: active auctions user created
-        selling_activity = db.scalar(
-            func.count().select_from(auction).where(
-                auction.seller_id == user_id, auction.is_active == True
+        result["active_listings"] = _count(
+            db.query(func.count(Listing.id)).filter(
+                Listing.seller_id == user_id,
+                func.lower(Listing.status) == "active",
             )
         )
-        result["selling_activity"] = int(selling_activity) if selling_activity else 0
 
-        # Top price from user's bids
-        if bid and hasattr(bid, "amount"):
-            top_price = db.scalar(
-                func.max(bid.amount).select_from(bid).where(bid.bidder_id == user_id)
+        result["draft_listings"] = _count(
+            db.query(func.count(Listing.id)).filter(
+                Listing.seller_id == user_id,
+                func.lower(Listing.status) == "draft",
             )
-            result["top_price_achieved"] = float(top_price) if top_price else 0.0
+        )
 
     except Exception:
-        # If queries fail for any reason, keep defaults
-        result["_schema_missing"] = True
-        return result
+        logger.exception("Failed to load listing statistics")
+        # Do not silently present incorrect zero counts.
+        raise
+
+    
+    # 2. Auction statistics
+    Auction = _get_auction_model()
+
+    if Auction is not None:
+        try:
+            auction_columns = {
+                column.name for column in Auction.__table__.columns
+            }
+
+            # Count active auctions only if the model has a status field.
+            if "status" in auction_columns:
+                result["active_auctions"] = _count(
+                    db.query(func.count(Auction.id)).filter(
+                        func.lower(Auction.status) == "active"
+                    )
+                )
+            elif "is_active" in auction_columns:
+                result["active_auctions"] = _count(
+                    db.query(func.count(Auction.id)).filter(
+                        Auction.is_active.is_(True)
+                    )
+                )
+
+            # Count auctions created by this user.
+            if "seller_id" in auction_columns:
+                seller_query = db.query(func.count(Auction.id)).filter(
+                    Auction.seller_id == user_id
+                )
+
+                if "status" in auction_columns:
+                    seller_query = seller_query.filter(
+                        func.lower(Auction.status) == "active"
+                    )
+                elif "is_active" in auction_columns:
+                    seller_query = seller_query.filter(
+                        Auction.is_active.is_(True)
+                    )
+
+                result["leading_auctions"] = _count(seller_query)
+                result["selling_activity"] = result["leading_auctions"]
+
+        except Exception:
+            logger.exception("Failed to load auction statistics")
+            db.rollback()
+
+
+    # 3. Bid statistics
+    Bid = _get_bid_model()
+
+    if Bid is not None:
+        try:
+            result["user_bids_count"] = _count(
+                db.query(func.count(Bid.id)).filter(
+                    Bid.bidder_id == user_id
+                )
+            )
+
+            if hasattr(Bid, "amount"):
+                top_price = (
+                    db.query(func.max(Bid.amount))
+                    .filter(Bid.bidder_id == user_id)
+                    .scalar()
+                )
+
+                if top_price is not None:
+                    result["top_price_achieved"] = float(
+                        top_price
+                        if isinstance(top_price, Decimal)
+                        else Decimal(str(top_price))
+                    )
+
+        except Exception:
+            logger.exception("Failed to load bid statistics")
+            db.rollback()
 
     return result

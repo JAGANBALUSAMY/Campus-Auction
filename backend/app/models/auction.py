@@ -1,10 +1,8 @@
 import uuid
-from datetime import datetime
-from typing import List
-from decimal import Decimal
-import sqlalchemy as sa
+from datetime import datetime, timezone
+
 from sqlalchemy import Boolean, CheckConstraint, DateTime, String, Uuid, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
@@ -37,18 +35,15 @@ class Auction(Base):
     condition: Mapped[str | None] = mapped_column(
         String(50), nullable=True
     )
-    starting_price: Mapped[Decimal] = mapped_column(
-        sa.Numeric(10, 2), nullable=False, default=Decimal('0.00')
+    starting_price: Mapped[float] = mapped_column(
+        nullable=False, default=0.0
     )
-    minimum_increment: Mapped[Decimal] = mapped_column(
-        sa.Numeric(10, 2), nullable=False, default=Decimal('0.01')
+    minimum_increment: Mapped[float] = mapped_column(
+        nullable=False, default=0.01
     )
-    version: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
-
     seller_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), nullable=False
     )
-    photos: Mapped[List["Photo"]] = relationship("Photo", back_populates="auction", cascade="all, delete-orphan")
     closed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
@@ -57,4 +52,8 @@ class Auction(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    # Photo references - comma-separated file paths
+    photos: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, default=None
     )

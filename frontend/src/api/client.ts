@@ -127,10 +127,14 @@ function getCsrfToken(): string | null {
   return cookie ? decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1)) : null
 }
 
-export function logoutUser(): Promise<void> {
+export async function logoutUser(): Promise<void> {
   const csrfToken = getCsrfToken()
   return request<void>('/api/v1/auth/logout', {
     method: 'POST',
     headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
   })
+}
+
+export async function getMyListings(userId: string): Promise<any> {
+  return request(`/api/v1/listings/mine?userId=${userId}`)
 }
